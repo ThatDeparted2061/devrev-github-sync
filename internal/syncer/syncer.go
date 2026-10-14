@@ -200,7 +200,7 @@ func (s *Syncer) Converge(ctx context.Context, key string, hint time.Time) (stri
 		}
 		ghMoved := link == nil || Status(link.GHStatus) != ghStatus
 		dvMoved := link != nil && Status(link.DVStatus) != dvStatus
-		ghEdited := link == nil || gh.UpdatedAt.After(link.GHSeenAt)
+		ghEdited := link == nil || us(gh.UpdatedAt).After(link.GHSeenAt)
 
 		if InSync(gh, w) && !ghEdited {
 			if link == nil || ghMoved || dvMoved {
@@ -219,14 +219,14 @@ func (s *Syncer) Converge(ctx context.Context, key string, hint time.Time) (stri
 					return err
 				} else if ghAt.After(gh.UpdatedAt) {
 					return ErrStale // GitHub changed after we read it: start over
-				} else if ghAt.After(link.GHSeenAt) {
+				} else if us(ghAt).After(link.GHSeenAt) {
 					ghMoved = true
 				}
 			} else if changes, err := store.DevRevStageChanges(ctx, tx, key, link.DVSeenAt); err != nil {
 				return err
 			} else {
 				for _, c := range changes {
-					if c.At.Truncate(time.Microsecond).After(w.ModifiedDate.Truncate(time.Microsecond)) {
+					if c.At.After(us(w.ModifiedDate)) {
 						return ErrStale // DevRev changed after we read it
 					}
 					if DevRevStatus(c.From) != DevRevStatus(c.To) {
@@ -236,7 +236,7 @@ func (s *Syncer) Converge(ctx context.Context, key string, hint time.Time) (stri
 			}
 		}
 		slog.Debug("decide", "key", key, "gh", ghStatus, "dv", dvStatus, "gh_moved", ghMoved, "dv_moved", dvMoved, "dv_modified", w.ModifiedDate)
-		if !statusInSync(gh, w) && ghMoved && !dvMoved && w.ModifiedDate.After(link.DVSeenAt) {
+		if !statusInSync(gh, w) && ghMoved && !dvMoved && us(w.ModifiedDate).After(link.DVSeenAt) {
 			// DevRev's status looks unchanged, yet the work item was modified
 			// since the last sync. DevRev has no stage history API, so only its
 			// webhook can say whether the stage moved and moved back. Wait for it
@@ -324,7 +324,7 @@ func (s *Syncer) devrevStatusChangedAt(ctx context.Context, tx pgx.Tx, key strin
 	}
 	var last *store.StageChange
 	for i, c := range changes {
-		if c.At.Truncate(time.Microsecond).After(w.ModifiedDate.Truncate(time.Microsecond)) {
+		if c.At.After(us(w.ModifiedDate)) {
 			return time.Time{}, ErrStale
 		}
 		if DevRevStatus(c.From) != DevRevStatus(c.To) && (last == nil || c.At.After(last.At)) {
@@ -341,6 +341,11 @@ func (s *Syncer) devrevStatusChangedAt(ctx context.Context, tx pgx.Tx, key strin
 	}
 	return w.ModifiedDate, nil
 }
+
+// us truncates an API timestamp to the microseconds the links table keeps
+// (pgx truncates on write), so an unchanged object never looks newer than the
+// time recorded for it.
+func us(t time.Time) time.Time { return t.Truncate(time.Microsecond) }
 
 func newLink(key, kind string, gh *github.Issue, w *devrev.Work, ghBase, dvBase Status) store.Link {
 	return store.Link{GitHubKey: key, Kind: kind, WorkID: w.ID, GHSeenAt: gh.UpdatedAt, DVSeenAt: w.ModifiedDate,

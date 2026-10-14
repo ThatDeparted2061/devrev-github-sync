@@ -235,23 +235,42 @@ type StageChange struct {
 
 // DevRevStageChanges returns the stage transitions in every DevRev
 // work_updated delivery recorded for key whose work was modified after since.
-// Deliveries arrive late and twice, so the caller treats them as a set of
-// facts, not a sequence.
+//
+// Times are kept at microseconds, truncated, which is how pgx stores a
+// time.Time. The payload's nanosecond timestamp is parsed here rather than by
+// Postgres, which would round it: a change at .087993731 would come back as
+// .087994, a microsecond after the same change read from the API.
 func DevRevStageChanges(ctx context.Context, tx pgx.Tx, key string, since time.Time) ([]StageChange, error) {
+	since = since.Truncate(time.Microsecond)
 	rows, err := tx.Query(ctx, `
 		SELECT coalesce(payload #>> '{work_updated,old_work,stage,name}', ''), coalesce(payload #>> '{work_updated,work,stage,name}', ''),
-		       (payload #>> '{work_updated,work,modified_date}')::timestamptz
+		       payload #>> '{work_updated,work,modified_date}'
 		FROM events
 		WHERE object_key = $1 AND source = 'devrev' AND event_type = 'work_updated'
-		  AND (payload #>> '{work_updated,work,modified_date}')::timestamptz > $2`, key, since)
+		  AND (payload #>> '{work_updated,work,modified_date}')::timestamptz >= $2`, key, since)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (StageChange, error) {
+	all, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (StageChange, error) {
 		var c StageChange
-		err := r.Scan(&c.From, &c.To, &c.At)
+		var at string
+		if err := r.Scan(&c.From, &c.To, &at); err != nil {
+			return c, err
+		}
+		t, err := time.Parse(time.RFC3339Nano, at)
+		c.At = t.Truncate(time.Microsecond)
 		return c, err
 	})
+	if err != nil {
+		return nil, err
+	}
+	out := all[:0]
+	for _, c := range all {
+		if c.At.After(since) {
+			out = append(out, c)
+		}
+	}
+	return out, nil
 }
 
 // DevRevDelivered reports whether a DevRev delivery describing the work as of
