@@ -236,6 +236,9 @@ func (s *Server) handle(ctx context.Context, e store.Event, maxAttempts int) {
 	}
 	dead := !Retryable(err) || e.Attempts >= maxAttempts
 	backoff := retry.Backoff(e.Attempts-1, 500*time.Millisecond, 2*time.Minute)
+	if errors.Is(err, ErrAwaitingWebhook) {
+		dead, backoff = false, time.Second // bounded by WebhookGrace, not by attempts
+	}
 	var se *retry.StatusError
 	if errors.As(err, &se) && se.RetryAfter > backoff {
 		backoff = se.RetryAfter

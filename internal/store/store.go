@@ -227,22 +227,41 @@ func (s *Store) Pending(ctx context.Context) (int64, error) {
 	return n, err
 }
 
-// DevRevStageChanges returns the (old, new) stage names of every DevRev
+// StageChange is one DevRev stage transition seen in a work_updated delivery.
+type StageChange struct {
+	From, To string
+	At       time.Time // the work's modified_date after the change
+}
+
+// DevRevStageChanges returns the stage transitions in every DevRev
 // work_updated delivery recorded for key whose work was modified after since.
 // Deliveries arrive late and twice, so the caller treats them as a set of
 // facts, not a sequence.
-func DevRevStageChanges(ctx context.Context, tx pgx.Tx, key string, since time.Time) ([][2]string, error) {
+func DevRevStageChanges(ctx context.Context, tx pgx.Tx, key string, since time.Time) ([]StageChange, error) {
 	rows, err := tx.Query(ctx, `
-		SELECT coalesce(payload #>> '{work_updated,old_work,stage,name}', ''), coalesce(payload #>> '{work_updated,work,stage,name}', '')
+		SELECT coalesce(payload #>> '{work_updated,old_work,stage,name}', ''), coalesce(payload #>> '{work_updated,work,stage,name}', ''),
+		       (payload #>> '{work_updated,work,modified_date}')::timestamptz
 		FROM events
 		WHERE object_key = $1 AND source = 'devrev' AND event_type = 'work_updated'
 		  AND (payload #>> '{work_updated,work,modified_date}')::timestamptz > $2`, key, since)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(r pgx.CollectableRow) ([2]string, error) {
-		var c [2]string
-		err := r.Scan(&c[0], &c[1])
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (StageChange, error) {
+		var c StageChange
+		err := r.Scan(&c.From, &c.To, &c.At)
 		return c, err
 	})
+}
+
+// DevRevDelivered reports whether a DevRev delivery describing the work as of
+// modified (or later) has been recorded for key.
+func DevRevDelivered(ctx context.Context, tx pgx.Tx, key string, modified time.Time) (bool, error) {
+	var ok bool
+	err := tx.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM events
+		WHERE object_key = $1 AND source = 'devrev'
+		  AND coalesce(payload #>> '{work_updated,work,modified_date}', payload #>> '{work_created,work,modified_date}')::timestamptz >= $2)`,
+		key, modified.Truncate(time.Microsecond)).Scan(&ok)
+	return ok, err
 }

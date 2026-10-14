@@ -13,6 +13,7 @@
 package syncer
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -132,11 +133,19 @@ func statusInSync(i *github.Issue, w *devrev.Work) bool {
 // (replica lag); the event is retried.
 var ErrStale = errors.New("github returned a stale read")
 
+// ErrAwaitingWebhook means DevRev changed since the last sync but its webhook,
+// the only record of what changed, has not arrived yet; the event is retried
+// shortly, for up to WebhookGrace.
+var ErrAwaitingWebhook = errors.New("waiting for the DevRev webhook that explains a change")
+
 // Syncer converges objects.
 type Syncer struct {
 	Store *store.Store
 	GH    *github.Client
 	DV    *devrev.Client
+	// WebhookGrace bounds how long a sync waits for a late DevRev webhook
+	// before deciding without it. Zero means 10 s.
+	WebhookGrace time.Duration
 }
 
 // Converge brings key's two sides into agreement and returns what it did:
@@ -187,7 +196,7 @@ func (s *Syncer) Converge(ctx context.Context, key string, hint time.Time) (stri
 
 		ghStatus, dvStatus := GitHubStatus(gh), DevRevStatus(w.Stage.Name)
 		if link != nil {
-			slog.Debug("converge", "key", key, "gh", ghStatus, "dv", dvStatus, "base_gh", link.GHStatus, "base_dv", link.DVStatus)
+			slog.Debug("converge", "key", key, "gh", ghStatus, "dv", dvStatus, "base_gh", link.GHStatus, "base_dv", link.DVStatus, "gh_updated", gh.UpdatedAt, "dv_modified", w.ModifiedDate, "gh_seen", link.GHSeenAt, "dv_seen", link.DVSeenAt)
 		}
 		ghMoved := link == nil || Status(link.GHStatus) != ghStatus
 		dvMoved := link != nil && Status(link.DVStatus) != dvStatus
@@ -208,6 +217,8 @@ func (s *Syncer) Converge(ctx context.Context, key string, hint time.Time) (stri
 			if dvMoved {
 				if ghAt, err := s.GH.StatusChangedAt(ctx, number); err != nil {
 					return err
+				} else if ghAt.After(gh.UpdatedAt) {
+					return ErrStale // GitHub changed after we read it: start over
 				} else if ghAt.After(link.GHSeenAt) {
 					ghMoved = true
 				}
@@ -215,13 +226,29 @@ func (s *Syncer) Converge(ctx context.Context, key string, hint time.Time) (stri
 				return err
 			} else {
 				for _, c := range changes {
-					if DevRevStatus(c[0]) != DevRevStatus(c[1]) {
+					if c.At.Truncate(time.Microsecond).After(w.ModifiedDate.Truncate(time.Microsecond)) {
+						return ErrStale // DevRev changed after we read it
+					}
+					if DevRevStatus(c.From) != DevRevStatus(c.To) {
 						dvMoved = true
 					}
 				}
 			}
 		}
 		slog.Debug("decide", "key", key, "gh", ghStatus, "dv", dvStatus, "gh_moved", ghMoved, "dv_moved", dvMoved, "dv_modified", w.ModifiedDate)
+		if !statusInSync(gh, w) && ghMoved && !dvMoved && w.ModifiedDate.After(link.DVSeenAt) {
+			// DevRev's status looks unchanged, yet the work item was modified
+			// since the last sync. DevRev has no stage history API, so only its
+			// webhook can say whether the stage moved and moved back. Wait for it
+			// (it is usually seconds behind) rather than let GitHub overwrite a
+			// change we cannot see.
+			grace := cmp.Or(s.WebhookGrace, 10*time.Second)
+			if seen, err := store.DevRevDelivered(ctx, tx, key, w.ModifiedDate); err != nil {
+				return err
+			} else if !seen && time.Since(w.ModifiedDate) < grace {
+				return ErrAwaitingWebhook
+			}
+		}
 		if !statusInSync(gh, w) && dvMoved {
 			devrevWins = !ghMoved
 			if ghMoved { // both sides changed status since the last sync: the later change wins
@@ -229,7 +256,15 @@ func (s *Syncer) Converge(ctx context.Context, key string, hint time.Time) (stri
 				if err != nil {
 					return err
 				}
-				devrevWins = w.ModifiedDate.After(ghAt)
+				if ghAt.After(gh.UpdatedAt) {
+					return ErrStale
+				}
+				dvAt, err := s.devrevStatusChangedAt(ctx, tx, key, link, w)
+				if err != nil {
+					return err
+				}
+				devrevWins = dvAt.After(ghAt)
+				slog.Debug("conflict", "key", key, "gh_at", ghAt, "dv_at", dvAt, "devrev_wins", devrevWins)
 				metrics.Conflict(map[bool]string{true: "devrev", false: "github"}[devrevWins])
 			}
 		}
@@ -274,6 +309,37 @@ func (s *Syncer) Converge(ctx context.Context, key string, hint time.Time) (stri
 		metrics.Converge(action)
 	}
 	return action, err
+}
+
+// devrevStatusChangedAt is when DevRev's status last changed class (open to
+// closed, or between close reasons), from the stage transitions recorded in
+// its webhooks. modified_date is no substitute: any later edit, even a move
+// between two open stages, bumps it. If no recorded transition explains the
+// status change yet, it waits (within WebhookGrace) for the webhook, then
+// falls back to modified_date.
+func (s *Syncer) devrevStatusChangedAt(ctx context.Context, tx pgx.Tx, key string, link *store.Link, w *devrev.Work) (time.Time, error) {
+	changes, err := store.DevRevStageChanges(ctx, tx, key, link.DVSeenAt)
+	if err != nil {
+		return time.Time{}, err
+	}
+	var last *store.StageChange
+	for i, c := range changes {
+		if c.At.Truncate(time.Microsecond).After(w.ModifiedDate.Truncate(time.Microsecond)) {
+			return time.Time{}, ErrStale
+		}
+		if DevRevStatus(c.From) != DevRevStatus(c.To) && (last == nil || c.At.After(last.At)) {
+			last = &changes[i]
+		}
+	}
+	// The latest recorded change must be the one that produced today's
+	// status; if it is not, the webhook for a later change is still in flight.
+	if last != nil && DevRevStatus(last.To) == DevRevStatus(w.Stage.Name) {
+		return last.At, nil
+	}
+	if time.Since(w.ModifiedDate) < cmp.Or(s.WebhookGrace, 10*time.Second) {
+		return time.Time{}, ErrAwaitingWebhook
+	}
+	return w.ModifiedDate, nil
 }
 
 func newLink(key, kind string, gh *github.Issue, w *devrev.Work, ghBase, dvBase Status) store.Link {
