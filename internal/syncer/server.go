@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -212,6 +213,12 @@ func (s *Server) Workers(ctx context.Context, n, maxAttempts int) {
 }
 
 func (s *Server) handle(ctx context.Context, e store.Event, maxAttempts int) {
+	defer func() {
+		if p := recover(); p != nil { // one bad event must not take the worker down
+			slog.Error("panic while syncing", "object", e.ObjectKey, "panic", p)
+			s.Syncer.Store.Fail(ctx, e.ID, fmt.Errorf("panic: %v", p), time.Minute, e.Attempts >= maxAttempts)
+		}
+	}()
 	var hint time.Time
 	if e.Source == "github" {
 		if d, err := github.ParseDelivery(e.Payload); err == nil {
