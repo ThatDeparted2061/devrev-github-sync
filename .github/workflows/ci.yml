@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 2s --health-retries 30
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+      DATABASE_ADMIN_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test -race ./...
+      - name: Chaos benchmark (2,000 changes)
+        run: EVENTS=2000 OBJECTS=200 bench/run.sh
+      - name: Zero duplicates and zero lost updates
+        run: |
+          jq -e '.duplicate_work_items == 0 and .missing_work_items == 0 and .lost_updates == 0 and .converged' bench/results/chaos.json
+      - run: cat bench/RESULTS.md >> "$GITHUB_STEP_SUMMARY"
