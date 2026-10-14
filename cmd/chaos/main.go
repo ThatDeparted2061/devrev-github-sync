@@ -182,7 +182,7 @@ func main() {
 		}
 		getJSON(*syncURL+"/stats", &st)
 		if err := getJSON(*simURL+"/admin/truth", &t); err == nil && t.Stats.InFlight == 0 && st.Events["pending"] == 0 {
-			if c := check(t); c.DuplicateWork == 0 && c.MissingWork == 0 && c.LostUpdates == 0 && c.Races == 0 {
+			if c := check(t); c.DuplicateWork == 0 && c.MissingWork == 0 && c.Disagree == 0 {
 				res.Converged = true
 				break
 			}
@@ -239,14 +239,9 @@ func main() {
 
 type checked struct {
 	DuplicateWork, MissingWork, LostUpdates, Races int
+	Disagree                                       int // objects where GitHub and DevRev still differ
 	LostKeys                                       []string
 }
-
-// raceWindow: a sync write this soon after a user's change to the same object
-// may have been decided on a read taken just before that change. Neither
-// GitHub's nor DevRev's update API takes a version precondition, so no sync
-// can close that window; such cases are reported separately.
-const raceWindow = 100 * time.Millisecond
 
 // check compares the end state with what users last asked for. Status: the
 // last user status change on either side wins. Title: the last GitHub title.
@@ -258,12 +253,17 @@ func check(t sim.Truth) checked {
 		works[k] = append(works[k], i)
 	}
 	type want struct {
-		status, title string
-		statusAt      time.Time
-		lastUser      time.Time
+		status, title     string
+		statusAt, titleAt time.Time
+		statusSide        string
+	}
+	type op struct {
+		at   time.Time
+		side string
+		read bool
 	}
 	wants := map[string]*want{}
-	syncWrites := map[string][]time.Time{}
+	syncOps := map[string][]op{}
 	for _, a := range t.Audit {
 		w := wants[a.Key]
 		if w == nil {
@@ -271,15 +271,14 @@ func check(t sim.Truth) checked {
 			wants[a.Key] = w
 		}
 		if a.Actor == "sync" {
-			syncWrites[a.Key] = append(syncWrites[a.Key], a.At)
+			syncOps[a.Key] = append(syncOps[a.Key], op{a.At, a.Side, a.Field == "read"})
 			continue
 		}
-		w.lastUser = a.At
 		if a.Status != "" {
-			w.status, w.statusAt = a.Status, a.At
+			w.status, w.statusAt, w.statusSide = a.Status, a.At, a.Side
 		}
 		if a.Title != "" {
-			w.title = a.Title
+			w.title, w.titleAt = a.Title, a.At
 		}
 	}
 	for _, i := range t.Issues {
@@ -294,14 +293,30 @@ func check(t sim.Truth) checked {
 		wk := t.Works[ws[0]]
 		w := wants[i.Key]
 		dv := string(syncer.DevRevStatus(wk.Stage.Name))
+		if i.Title != wk.Title || !(i.Status == dv || (i.PR && i.Status == "open" && dv == "closed:completed")) {
+			c.Disagree++
+		}
 		ok := i.Title == w.title && wk.Title == w.title && i.Status == w.status &&
 			(dv == w.status || (i.PR && w.status == "open" && dv == "closed:completed"))
 		if ok {
 			continue
 		}
+		// A race: after the user's change, the sync wrote to that same side
+		// based on a read it took before the change. Neither API offers a
+		// version precondition, so no sync can prevent this; it is counted
+		// apart from lost updates, which would be the sync's fault.
+		changedAt, side := w.statusAt, w.statusSide
+		if i.Title != w.title || wk.Title != w.title {
+			changedAt, side = w.titleAt, "github"
+		}
 		race := false
-		for _, at := range syncWrites[i.Key] {
-			if d := at.Sub(w.lastUser); d >= 0 && d < raceWindow {
+		var lastRead time.Time
+		for _, o := range syncOps[i.Key] {
+			switch {
+			case o.side != side:
+			case o.read:
+				lastRead = o.at
+			case o.at.After(changedAt) && lastRead.Before(changedAt):
 				race = true
 			}
 		}
@@ -363,7 +378,7 @@ func markdown(r Result) string {
 	row("**Duplicate work items**", r.DuplicateWork)
 	row("**Missing work items**", r.MissingWork)
 	row("**Lost updates**", r.LostUpdates)
-	row("Concurrent-edit races (see README)", r.Races)
+	row("Concurrent-edit races (user changed a side between the sync's read and write; see README)", r.Races)
 	row("**Drift healed within** (last change -> both sides agree)", fmt.Sprintf("%.1f s", r.HealSeconds))
 	row("Converged", yes[r.Converged])
 	return b.String()

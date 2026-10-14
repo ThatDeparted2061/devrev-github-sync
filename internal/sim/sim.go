@@ -67,7 +67,7 @@ type Write struct {
 	Side   string    `json:"side"`  // github | devrev
 	Actor  string    `json:"actor"` // user | sync
 	Key    string    `json:"key"`
-	Field  string    `json:"field"` // create | title | status
+	Field  string    `json:"field"` // create | title | status | read (a sync read, to tell races from bugs)
 	Status string    `json:"status,omitempty"`
 	Title  string    `json:"title,omitempty"`
 }
@@ -277,6 +277,7 @@ func (s *Sim) ghGet(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if i := s.issue(w, r); i != nil {
+		s.audit = append(s.audit, Write{At: s.now(), Side: "github", Actor: "sync", Key: s.key(i.Number), Field: "read"})
 		writeJSON(w, 200, i.Issue)
 	}
 }
@@ -447,6 +448,7 @@ func (s *Sim) dvGet(w http.ResponseWriter, r *http.Request) {
 	var out devrev.Work
 	if wk != nil {
 		out = *wk
+		s.audit = append(s.audit, Write{At: s.now(), Side: "devrev", Actor: "sync", Key: strings.TrimPrefix(wk.ExternalRef, "github:"), Field: "read"})
 	}
 	s.mu.Unlock()
 	if wk == nil {
