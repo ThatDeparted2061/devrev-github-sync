@@ -1,0 +1,36 @@
+{
+  "user_events": 10036,
+  "pull_requests": 194,
+  "issues": 806,
+  "webhooks": {
+    "webhooks": 16401,
+    "delivered": 18653,
+    "duplicated": 3052,
+    "dropped": 800,
+    "failed": 341,
+    "in_flight": 0,
+    "api_429": 711,
+    "api_5xx": 393,
+    "lost_responses": 68
+  },
+  "sync_event_log": {
+    "coalesced": 4485,
+    "done": 16899
+  },
+  "duplicate_deliveries_rejected": 2948,
+  "converge_actions": {
+    "created": 987,
+    "noop": 6228,
+    "pushed_devrev": 4301,
+    "pushed_github": 898
+  },
+  "duplicate_work_items": 0,
+  "missing_work_items": 0,
+  "lost_updates": 0,
+  "concurrent_edit_races": 0,
+  "drive_seconds": 34.352784625,
+  "drift_healed_seconds": 12.085344042,
+  "converged": true,
+  "drop_rate": 0.04877751356624596,
+  "duplicate_rate": 0.18608621425522834
+}

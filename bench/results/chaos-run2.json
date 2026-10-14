@@ -1,0 +1,701 @@
+{
+  "user_events": 10001,
+  "pull_requests": 194,
+  "issues": 806,
+  "webhooks": {
+    "webhooks": 16570,
+    "delivered": 18915,
+    "duplicated": 3184,
+    "dropped": 839,
+    "failed": 347,
+    "in_flight": 0,
+    "api_429": 742,
+    "api_5xx": 367,
+    "lost_responses": 66
+  },
+  "sync_event_log": {
+    "coalesced": 4397,
+    "dead": 1,
+    "done": 17274
+  },
+  "duplicate_deliveries_rejected": 3096,
+  "converge_actions": {
+    "created": 989,
+    "noop": 6480,
+    "pushed_devrev": 4499,
+    "pushed_github": 909
+  },
+  "duplicate_work_items": 0,
+  "missing_work_items": 0,
+  "lost_updates": 1,
+  "concurrent_edit_races": 0,
+  "lost_keys": [
+    "acme/storefront#890: want \"closed:not_planned\"/\"Bug 890 (rev 8): checkout fails on retry\", github \"open\"/\"Bug 890 (rev 8): checkout fails on retry\", devrev \"open\"/\"Bug 890 (rev 8): checkout fails on retry\""
+  ],
+  "lost_trails": {
+    "acme/storefront#890": [
+      {
+        "at": "2026-10-14T20:08:49.666744Z",
+        "side": "github",
+        "actor": "user",
+        "key": "acme/storefront#890",
+        "field": "create",
+        "status": "open",
+        "title": "Bug 889: checkout fails on retry"
+      },
+      {
+        "at": "2026-10-14T20:08:50.238706Z",
+        "side": "github",
+        "actor": "user",
+        "key": "acme/storefront#890",
+        "field": "title",
+        "title": "Bug 890 (rev 1): checkout fails on retry"
+      },
+      {
+        "at": "2026-10-14T20:08:50.644748Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:50.656848Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "create",
+        "status": "open",
+        "title": "Bug 890 (rev 1): checkout fails on retry"
+      },
+      {
+        "at": "2026-10-14T20:08:51.61138Z",
+        "side": "github",
+        "actor": "user",
+        "key": "acme/storefront#890",
+        "field": "title",
+        "title": "Bug 890 (rev 2): checkout fails on retry"
+      },
+      {
+        "at": "2026-10-14T20:08:52.000746Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:52.004246Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:52.005295Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "title",
+        "title": "Bug 890 (rev 2): checkout fails on retry"
+      },
+      {
+        "at": "2026-10-14T20:08:52.458605Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:52.466229Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:52.638039Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:52.643368Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:53.203785Z",
+        "side": "github",
+        "actor": "user",
+        "key": "acme/storefront#890",
+        "field": "status",
+        "status": "closed:duplicate"
+      },
+      {
+        "at": "2026-10-14T20:08:53.425704Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:53.433369Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:53.437608Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "status",
+        "status": "closed:duplicate"
+      },
+      {
+        "at": "2026-10-14T20:08:54.073844Z",
+        "side": "github",
+        "actor": "user",
+        "key": "acme/storefront#890",
+        "field": "status",
+        "status": "open"
+      },
+      {
+        "at": "2026-10-14T20:08:54.736228Z",
+        "side": "github",
+        "actor": "user",
+        "key": "acme/storefront#890",
+        "field": "status",
+        "status": "closed:duplicate"
+      },
+      {
+        "at": "2026-10-14T20:08:55.082351Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:55.086948Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:55.541945Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:55.550961Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:56.021756Z",
+        "side": "github",
+        "actor": "user",
+        "key": "acme/storefront#890",
+        "field": "status",
+        "status": "closed:completed"
+      },
+      {
+        "at": "2026-10-14T20:08:56.043617Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:56.0462Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:56.050677Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "status",
+        "status": "closed:completed"
+      },
+      {
+        "at": "2026-10-14T20:08:56.625374Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:56.627869Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:57.642566Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:57.645322Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:08:58.763749Z",
+        "side": "github",
+        "actor": "user",
+        "key": "acme/storefront#890",
+        "field": "title",
+        "title": "Bug 890 (rev 7): checkout fails on retry"
+      },
+      {
+        "at": "2026-10-14T20:09:00.823873Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:00.831776Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:02.151419Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:02.169797Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:02.172321Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "title",
+        "title": "Bug 890 (rev 7): checkout fails on retry"
+      },
+      {
+        "at": "2026-10-14T20:09:05.269579Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:05.272743Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:08.091289Z",
+        "side": "github",
+        "actor": "user",
+        "key": "acme/storefront#890",
+        "field": "title",
+        "title": "Bug 890 (rev 8): checkout fails on retry"
+      },
+      {
+        "at": "2026-10-14T20:09:10.42044Z",
+        "side": "devrev",
+        "actor": "user",
+        "key": "acme/storefront#890",
+        "field": "status",
+        "status": "open"
+      },
+      {
+        "at": "2026-10-14T20:09:13.225709Z",
+        "side": "github",
+        "actor": "user",
+        "key": "acme/storefront#890",
+        "field": "status",
+        "status": "closed:not_planned"
+      },
+      {
+        "at": "2026-10-14T20:09:13.375955Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:13.502706Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:15.210618Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:15.314103Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:17.813744Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:17.860826Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:21.062893Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:21.071061Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:22.031402Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:22.035079Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:22.228441Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:22.230214Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:22.744745Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:22.745117Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:23.168344Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:23.368991Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:23.372052Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:23.883762Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:23.892739Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:24.231961Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:24.241536Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:24.440033Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:24.445726Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:24.733152Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:24.735309Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:24.909317Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:24.912351Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:25.292332Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:25.299067Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:25.42944Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:25.432827Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:25.474832Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:25.478642Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:25.749158Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:25.926577Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:25.935697Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:26.313816Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:26.320137Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:26.445994Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:26.451065Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:26.774625Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:26.776335Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:26.970934Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:26.977774Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:26.990383Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "status",
+        "status": "open"
+      },
+      {
+        "at": "2026-10-14T20:09:26.997545Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "title",
+        "title": "Bug 890 (rev 8): checkout fails on retry"
+      },
+      {
+        "at": "2026-10-14T20:09:28.26295Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:28.268933Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:28.329269Z",
+        "side": "github",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      },
+      {
+        "at": "2026-10-14T20:09:28.331894Z",
+        "side": "devrev",
+        "actor": "sync",
+        "key": "acme/storefront#890",
+        "field": "read"
+      }
+    ]
+  },
+  "drive_seconds": 34.400362375,
+  "drift_healed_seconds": 11.948485375,
+  "converged": true,
+  "drop_rate": 0.050633675316837656,
+  "duplicate_rate": 0.19215449607724805
+}
