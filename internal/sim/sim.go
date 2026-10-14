@@ -318,27 +318,31 @@ func (s *Sim) ghPatch(w http.ResponseWriter, r *http.Request) {
 }
 
 // setState changes an issue's state and returns the webhook action, or "" if
-// nothing changed. Caller holds s.mu.
+// nothing changed. Like GitHub, a merged pull request is final, and a pull
+// request has no close reason. Caller holds s.mu.
 func (s *Sim) setState(i *ghIssue, state, reason string, merge bool, actor string) string {
-	if state == i.State && (state == "open" || reason == i.StateReason) {
+	if i.IsPR() {
+		if i.merged {
+			return ""
+		}
+		reason = ""
+	}
+	if state == "open" {
+		reason = ""
+	}
+	if state == i.State && reason == i.StateReason && !merge {
 		return ""
 	}
 	t := s.now()
 	action := "reopened"
-	i.State, i.StateReason, i.UpdatedAt = state, "", t
 	if state == "closed" {
 		action = "closed"
-		i.StateReason = reason
-		if i.IsPR() {
-			i.StateReason = ""
-			if merge {
-				i.merged = true
-				i.PullRequest.MergedAt = &t
-			}
+		if merge && i.IsPR() {
+			i.merged = true
+			i.PullRequest.MergedAt = &t
 		}
-	} else if i.IsPR() && i.merged {
-		return "" // a merged PR cannot be reopened
 	}
+	i.State, i.StateReason, i.UpdatedAt = state, reason, t
 	i.events = append(i.events, ghEvent{Event: action, CreatedAt: t})
 	s.audit = append(s.audit, Write{At: t, Side: "github", Actor: actor, Key: s.key(i.Number), Field: "status", Status: ghStatus(i)})
 	return action
