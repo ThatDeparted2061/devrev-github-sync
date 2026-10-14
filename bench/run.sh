@@ -25,11 +25,12 @@ trap cleanup EXIT
 
 export GITHUB_WEBHOOK_SECRET=bench-gh-secret DEVREV_WEBHOOK_SECRET=bench-dv-secret
 bin/sim -addr :9100 -sync http://localhost:8090 -dup 0.20 -drop 0.05 -max-delay 2s >"$OUT/logs/sim.log" 2>&1 & pids+=($!)
-DATABASE_URL=${ADMIN_URL/\/postgres?//$DB?} GITHUB_REPO=acme/storefront GITHUB_API=http://localhost:9100 GITHUB_TOKEN=sim \
+DATABASE_URL="${ADMIN_URL%/*}/$DB?${ADMIN_URL#*\?}" GITHUB_REPO=acme/storefront GITHUB_API=http://localhost:9100 GITHUB_TOKEN=sim \
 DEVREV_API=http://localhost:9100 DEVREV_TOKEN=sim DEVREV_PART_ID=PROD-1 DEVREV_OWNER_ID=DEVU-1 \
 RECONCILE_EVERY=${RECONCILE_EVERY:-5s} WORKERS=32 PORT=8090 \
   bin/sync >"$OUT/logs/sync.log" 2>&1 & pids+=($!)
-for _ in $(seq 1 50); do curl -sf localhost:8090/healthz >/dev/null && curl -sf localhost:9100/admin/stats >/dev/null && break; sleep 0.2; done
+for _ in $(seq 1 150); do curl -sf localhost:8090/healthz >/dev/null && curl -sf localhost:9100/admin/stats >/dev/null && break; sleep 0.2; done
+curl -sf localhost:8090/healthz >/dev/null || { echo "sync did not start:"; cat "$OUT/logs/sync.log"; exit 1; }
 
 bin/chaos -events "$EVENTS" -objects "$OBJECTS" -out "$OUT/chaos.json" -md bench/RESULTS.md >/dev/null
 cat bench/RESULTS.md
