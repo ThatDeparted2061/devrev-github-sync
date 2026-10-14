@@ -24,6 +24,7 @@ func main() {
 	flag.DurationVar(&c.MaxDelay, "max-delay", 2*time.Second, "random delivery delay (reorders deliveries)")
 	flag.Float64Var(&c.API429, "api-429", 0.02, "share of API calls answered 429 with Retry-After")
 	flag.Float64Var(&c.API5xx, "api-5xx", 0.01, "share of API calls answered 502")
+	flag.Float64Var(&c.LostResponse, "lost-response", 0.01, "share of API writes that commit but answer 502")
 	flag.DurationVar(&c.APILatency, "api-latency", 10*time.Millisecond, "random API latency, up to this")
 	flag.BoolVar(&c.UniqueExternalRef, "unique-external-ref", false, "reject duplicate external_ref on works.create, as DevRev does")
 	flag.Parse()

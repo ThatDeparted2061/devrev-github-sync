@@ -38,8 +38,11 @@ type Config struct {
 	Drop      float64       // share of webhooks never delivered
 	MaxDelay  time.Duration // each delivery waits 0..MaxDelay, so deliveries overtake each other
 
-	API429, API5xx float64       // per-call fault rates on both APIs
-	APILatency     time.Duration // added to every API call (0..APILatency)
+	API429, API5xx float64 // per-call fault rates on both APIs
+	// LostResponse is the share of writes (works.create, works.update, issue
+	// PATCH) that succeed but answer 502, as when a response is lost after commit.
+	LostResponse float64
+	APILatency   time.Duration // added to every API call (0..APILatency)
 
 	// UniqueExternalRef makes works.create reject a second work item with the
 	// same external_ref, as DevRev does. The benchmark turns it off to prove
@@ -79,6 +82,7 @@ type Stats struct {
 	InFlight   int64 `json:"in_flight"`  // scheduled, not yet sent
 	API429     int64 `json:"api_429"`
 	API5xx     int64 `json:"api_5xx"`
+	Lost       int64 `json:"lost_responses"` // writes that committed but answered 502
 }
 
 type Sim struct {
@@ -93,7 +97,7 @@ type Sim struct {
 	nextW  int
 	audit  []Write
 
-	webhooks, delivered, duplicated, dropped, failed, inFlight, api429, api5xx atomic.Int64
+	webhooks, delivered, duplicated, dropped, failed, inFlight, api429, api5xx, lost atomic.Int64
 }
 
 func New(cfg Config) *Sim {
@@ -114,7 +118,7 @@ func (s *Sim) now() time.Time {
 func (s *Sim) key(n int) string { return github.Key(s.cfg.Repo, n) }
 
 func (s *Sim) Stats() Stats {
-	return Stats{s.webhooks.Load(), s.delivered.Load(), s.duplicated.Load(), s.dropped.Load(), s.failed.Load(), s.inFlight.Load(), s.api429.Load(), s.api5xx.Load()}
+	return Stats{s.webhooks.Load(), s.delivered.Load(), s.duplicated.Load(), s.dropped.Load(), s.failed.Load(), s.inFlight.Load(), s.api429.Load(), s.api5xx.Load(), s.lost.Load()}
 }
 
 // emit sends a webhook through chaos. Caller holds no lock.
@@ -211,6 +215,16 @@ func (s *Sim) fault(w http.ResponseWriter) bool {
 	return false
 }
 
+// reply answers a successful write, unless the response is "lost".
+func (s *Sim) reply(w http.ResponseWriter, code int, v any) {
+	if mrand.Float64() < s.cfg.LostResponse {
+		s.lost.Add(1)
+		http.Error(w, `{"message":"bad gateway"}`, http.StatusBadGateway)
+		return
+	}
+	writeJSON(w, code, v)
+}
+
 func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
@@ -300,7 +314,7 @@ func (s *Sim) ghPatch(w http.ResponseWriter, r *http.Request) {
 	if action != "" {
 		s.githubWebhook(action, i)
 	}
-	writeJSON(w, 200, out)
+	s.reply(w, 200, out)
 }
 
 // setState changes an issue's state and returns the webhook action, or "" if
@@ -398,7 +412,7 @@ func (s *Sim) dvCreate(w http.ResponseWriter, r *http.Request) {
 	out := *wk
 	s.mu.Unlock()
 	s.devrevWebhook("work_created", &out, nil)
-	writeJSON(w, 201, map[string]any{"work": out})
+	s.reply(w, 201, map[string]any{"work": out})
 }
 
 func cmpOr(a, b string) string {
@@ -512,5 +526,5 @@ func (s *Sim) dvUpdate(w http.ResponseWriter, r *http.Request) {
 	if changed {
 		s.devrevWebhook("work_updated", &out, &old)
 	}
-	writeJSON(w, 200, map[string]any{"work": out})
+	s.reply(w, 200, map[string]any{"work": out})
 }

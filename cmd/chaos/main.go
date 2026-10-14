@@ -52,11 +52,11 @@ func getJSON(url string, v any) error {
 
 // Result is the benchmark outcome.
 type Result struct {
-	UserEvents       int64            `json:"user_events"`         // changes made by simulated users
-	PRs              int              `json:"pull_requests"`       //
-	Issues           int              `json:"issues"`              //
-	Webhooks         sim.Stats        `json:"webhooks"`            // everything the simulator sent, sync's own echoes included
-	Sync             map[string]int64 `json:"sync_event_log"`      // event-log rows by status
+	UserEvents       int64            `json:"user_events"`    // changes made by simulated users
+	PRs              int              `json:"pull_requests"`  //
+	Issues           int              `json:"issues"`         //
+	Webhooks         sim.Stats        `json:"webhooks"`       // everything the simulator sent, sync's own echoes included
+	Sync             map[string]int64 `json:"sync_event_log"` // event-log rows by status
 	DuplicatesCaught int64            `json:"duplicate_deliveries_rejected"`
 	Converge         map[string]int64 `json:"converge_actions"`
 	DuplicateWork    int              `json:"duplicate_work_items"`
@@ -346,6 +346,7 @@ func markdown(r Result) string {
 	row("Never delivered", fmt.Sprintf("%d (%.1f%%)", r.Webhooks.Dropped, r.DropRate*100))
 	row("Delivered out of order", "all (random 0-2 s delay each)")
 	row("API calls answered 429 / 5xx", fmt.Sprintf("%d / %d", r.Webhooks.API429, r.Webhooks.API5xx))
+	row("API writes that committed but answered 502", r.Webhooks.Lost)
 	row("Duplicate deliveries rejected by delivery ID", r.DuplicatesCaught)
 	row("Events coalesced into a later sync", r.Sync["coalesced"])
 	row("Dead-lettered events", r.Sync["dead"])
