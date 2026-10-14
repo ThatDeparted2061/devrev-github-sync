@@ -81,6 +81,7 @@ func main() {
 	rate := flag.Int("rate", 400, "user changes per second")
 	settle := flag.Duration("settle", 3*time.Minute, "give up waiting for convergence after this long")
 	out := flag.String("out", "", "write the JSON result here")
+	md := flag.String("md", "", "write a markdown summary here")
 	seed := flag.Uint64("seed", 7, "random seed")
 	flag.Parse()
 
@@ -218,6 +219,9 @@ func main() {
 		os.WriteFile(*out, b, 0o644)
 	}
 	fmt.Println(string(b))
+	if *md != "" {
+		os.WriteFile(*md, []byte(markdown(res)), 0o644)
+	}
 	if !res.Converged {
 		os.Exit(1)
 	}
@@ -328,4 +332,28 @@ func scrape(url string) (dups int64, actions map[string]int64) {
 		}
 	}
 	return
+}
+
+func markdown(r Result) string {
+	var b strings.Builder
+	yes := map[bool]string{true: "yes", false: "**no**"}
+	fmt.Fprintf(&b, "| | |\n|---|---:|\n")
+	row := func(k string, v any) { fmt.Fprintf(&b, "| %s | %v |\n", k, v) }
+	row("User changes (GitHub + DevRev)", r.UserEvents)
+	row("Objects (issues / pull requests)", fmt.Sprintf("%d / %d", r.Issues, r.PRs))
+	row("Webhooks generated (incl. the sync's own echoes)", r.Webhooks.Webhooks)
+	row("Delivered twice", fmt.Sprintf("%d (%.1f%%)", r.Webhooks.Duplicated, r.DuplicateRate*100))
+	row("Never delivered", fmt.Sprintf("%d (%.1f%%)", r.Webhooks.Dropped, r.DropRate*100))
+	row("Delivered out of order", "all (random 0-2 s delay each)")
+	row("API calls answered 429 / 5xx", fmt.Sprintf("%d / %d", r.Webhooks.API429, r.Webhooks.API5xx))
+	row("Duplicate deliveries rejected by delivery ID", r.DuplicatesCaught)
+	row("Events coalesced into a later sync", r.Sync["coalesced"])
+	row("Dead-lettered events", r.Sync["dead"])
+	row("**Duplicate work items**", r.DuplicateWork)
+	row("**Missing work items**", r.MissingWork)
+	row("**Lost updates**", r.LostUpdates)
+	row("Concurrent-edit races (see README)", r.Races)
+	row("**Drift healed within** (last change -> both sides agree)", fmt.Sprintf("%.1f s", r.HealSeconds))
+	row("Converged", yes[r.Converged])
+	return b.String()
 }
