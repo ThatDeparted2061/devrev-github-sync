@@ -41,7 +41,8 @@ type Tag struct {
 	} `json:"tag"`
 }
 
-// Client talks to one DevRev org.
+// Client talks to one DevRev org. Like the GitHub client, every call is a
+// single attempt except List.
 type Client struct {
 	rc         *retry.Client
 	base       string
@@ -52,7 +53,7 @@ func New(base, token, part, user string, observe func(api string, status int)) *
 	return &Client{
 		base: strings.TrimRight(base, "/"), Part: part, User: user,
 		rc: &retry.Client{
-			API: "devrev", HTTP: &http.Client{Timeout: 15 * time.Second}, Attempts: 3, Base: 200 * time.Millisecond, Observe: observe,
+			API: "devrev", HTTP: &http.Client{Timeout: 15 * time.Second}, Attempts: 1, Base: 200 * time.Millisecond, Observe: observe,
 			Headers: func(r *http.Request) { r.Header.Set("Authorization", "Bearer "+token) },
 		},
 	}
@@ -128,7 +129,7 @@ func (c *Client) List(ctx context.Context) ([]Work, error) {
 			Works      []Work `json:"works"`
 			NextCursor string `json:"next_cursor"`
 		}
-		if err := c.rc.Do(ctx, http.MethodGet, c.base+"/works.list?"+q.Encode(), nil, &out); err != nil {
+		if err := c.rc.Retrying(4).Do(ctx, http.MethodGet, c.base+"/works.list?"+q.Encode(), nil, &out); err != nil {
 			return nil, err
 		}
 		all = append(all, out.Works...)

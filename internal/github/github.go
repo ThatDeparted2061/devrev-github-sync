@@ -38,7 +38,9 @@ func (i Issue) IsPR() bool { return i.PullRequest != nil }
 // Merged reports whether a pull request was merged.
 func (i Issue) Merged() bool { return i.PullRequest != nil && i.PullRequest.MergedAt != nil }
 
-// Client talks to one repository.
+// Client talks to one repository. Calls are single attempts: the sync's
+// decisions must rest on fresh reads, so a failed call fails the whole sync,
+// which is retried from scratch. Only List (used by the reconciler) retries.
 type Client struct {
 	rc                *retry.Client
 	base, owner, repo string
@@ -48,7 +50,7 @@ func New(base, token, owner, repo string, observe func(api string, status int)) 
 	return &Client{
 		base: strings.TrimRight(base, "/"), owner: owner, repo: repo,
 		rc: &retry.Client{
-			API: "github", HTTP: &http.Client{Timeout: 15 * time.Second}, Attempts: 3, Base: 200 * time.Millisecond, Observe: observe,
+			API: "github", HTTP: &http.Client{Timeout: 15 * time.Second}, Attempts: 1, Base: 200 * time.Millisecond, Observe: observe,
 			Headers: func(r *http.Request) {
 				r.Header.Set("Authorization", "Bearer "+token)
 				r.Header.Set("Accept", "application/vnd.github+json")
@@ -103,7 +105,7 @@ func (c *Client) List(ctx context.Context, since time.Time) ([]Issue, error) {
 			q.Set("since", since.UTC().Format(time.RFC3339))
 		}
 		var batch []Issue
-		if err := c.rc.Do(ctx, http.MethodGet, fmt.Sprintf("%s/repos/%s/%s/issues?%s", c.base, c.owner, c.repo, q.Encode()), nil, &batch); err != nil {
+		if err := c.rc.Retrying(4).Do(ctx, http.MethodGet, fmt.Sprintf("%s/repos/%s/%s/issues?%s", c.base, c.owner, c.repo, q.Encode()), nil, &batch); err != nil {
 			return nil, err
 		}
 		all = append(all, batch...)

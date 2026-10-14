@@ -55,6 +55,13 @@ type Client struct {
 	Observe func(api string, status int)
 }
 
+// Retrying returns a copy of c that makes up to n attempts per call.
+func (c *Client) Retrying(n int) *Client {
+	cc := *c
+	cc.Attempts = n
+	return &cc
+}
+
 // DoOnce is Do without retries, for calls that are not idempotent: if the
 // response to a create is lost, retrying blindly could create a second item.
 func (c *Client) DoOnce(ctx context.Context, method, url string, body, out any) error {
