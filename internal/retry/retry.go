@@ -55,6 +55,14 @@ type Client struct {
 	Observe func(api string, status int)
 }
 
+// DoOnce is Do without retries, for calls that are not idempotent: if the
+// response to a create is lost, retrying blindly could create a second item.
+func (c *Client) DoOnce(ctx context.Context, method, url string, body, out any) error {
+	cc := *c
+	cc.Attempts = 1
+	return cc.Do(ctx, method, url, body, out)
+}
+
 // Do sends method url with body (nil for none) and decodes a 2xx answer into out.
 func (c *Client) Do(ctx context.Context, method, url string, body, out any) error {
 	var raw []byte

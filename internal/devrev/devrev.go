@@ -62,11 +62,13 @@ type workEnvelope struct {
 	Work Work `json:"work"`
 }
 
-// Create makes an issue. externalRef is unique per work type in DevRev, which
-// is a second line of defence against duplicates after the sync's own.
+// Create makes an issue. It is never retried here: if the response is lost
+// after DevRev created the item, the caller's next attempt finds it by
+// external_ref instead of creating it twice. external_ref is also unique per
+// work type in DevRev, a second line of defence.
 func (c *Client) Create(ctx context.Context, title, body, stage, externalRef string) (*Work, error) {
 	var out workEnvelope
-	err := c.rc.Do(ctx, http.MethodPost, c.base+"/works.create", map[string]any{
+	err := c.rc.DoOnce(ctx, http.MethodPost, c.base+"/works.create", map[string]any{
 		"type": "issue", "title": title, "body": body, "applies_to_part": c.Part, "owned_by": []string{c.User},
 		"external_ref": externalRef, "stage": Stage{Name: stage},
 	}, &out)
