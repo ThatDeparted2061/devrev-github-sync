@@ -1,0 +1,62 @@
+# docker compose up --build
+#
+# Runs the sync against a simulated GitHub repo and DevRev org that deliver
+# webhooks with 20% duplicates, 5% drops and random reordering, drives 10,000
+# user changes through them, and prints the result (also written to
+# bench/results/chaos.json).
+#
+# Against the real services instead, run only `sync` with GITHUB_API,
+# DEVREV_API, tokens, part/owner IDs and webhook secrets set (see .env.example).
+x-image: &image
+  build: .
+  image: devrev-github-sync:local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: sync
+      POSTGRES_DB: devrev_sync
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 2s
+      retries: 30
+
+  sim:
+    <<: *image
+    entrypoint: ["/sim", "-addr", ":9100", "-sync", "http://sync:8090", "-dup", "0.20", "-drop", "0.05", "-max-delay", "2s"]
+    environment:
+      GITHUB_WEBHOOK_SECRET: compose-gh-secret
+      DEVREV_WEBHOOK_SECRET: compose-dv-secret
+
+  sync:
+    <<: *image
+    ports:
+      - "8090:8090"
+    environment:
+      DATABASE_URL: postgres://postgres:sync@postgres:5432/devrev_sync?sslmode=disable
+      GITHUB_REPO: acme/storefront
+      GITHUB_API: http://sim:9100
+      GITHUB_TOKEN: sim
+      GITHUB_WEBHOOK_SECRET: compose-gh-secret
+      DEVREV_API: http://sim:9100
+      DEVREV_TOKEN: sim
+      DEVREV_PART_ID: PROD-1
+      DEVREV_OWNER_ID: DEVU-1
+      DEVREV_WEBHOOK_SECRET: compose-dv-secret
+      RECONCILE_EVERY: 5s
+      WORKERS: "32"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  chaos:
+    <<: *image
+    entrypoint: ["/chaos", "-sim", "http://sim:9100", "-sync", "http://sync:8090", "-events", "10000", "-objects", "1000",
+                 "-out", "/results/chaos.json", "-md", "/results/RESULTS.md"]
+    volumes:
+      - ./bench/results:/results
+    depends_on:
+      - sync
+      - sim
+    restart: "no"
