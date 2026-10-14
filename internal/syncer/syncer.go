@@ -201,6 +201,27 @@ func (s *Syncer) Converge(ctx context.Context, key string, hint time.Time) (stri
 		}
 
 		devrevWins := false
+		if !statusInSync(gh, w) && link != nil && ghMoved != dvMoved {
+			// One side looks unchanged, but it may have changed and changed back
+			// since the last sync (A -> B -> A). Ask its history before letting
+			// the other side overwrite it.
+			if dvMoved {
+				if ghAt, err := s.GH.StatusChangedAt(ctx, number); err != nil {
+					return err
+				} else if ghAt.After(link.GHSeenAt) {
+					ghMoved = true
+				}
+			} else if changes, err := store.DevRevStageChanges(ctx, tx, key, link.DVSeenAt); err != nil {
+				return err
+			} else {
+				for _, c := range changes {
+					if DevRevStatus(c[0]) != DevRevStatus(c[1]) {
+						dvMoved = true
+					}
+				}
+			}
+		}
+		slog.Debug("decide", "key", key, "gh", ghStatus, "dv", dvStatus, "gh_moved", ghMoved, "dv_moved", dvMoved, "dv_modified", w.ModifiedDate)
 		if !statusInSync(gh, w) && dvMoved {
 			devrevWins = !ghMoved
 			if ghMoved { // both sides changed status since the last sync: the later change wins
