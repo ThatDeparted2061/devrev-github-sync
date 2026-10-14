@@ -39,6 +39,9 @@ func must(key string) string {
 }
 
 func main() {
+	if os.Getenv("LOG_LEVEL") == "debug" {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

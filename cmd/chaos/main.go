@@ -52,23 +52,24 @@ func getJSON(url string, v any) error {
 
 // Result is the benchmark outcome.
 type Result struct {
-	UserEvents       int64            `json:"user_events"`    // changes made by simulated users
-	PRs              int              `json:"pull_requests"`  //
-	Issues           int              `json:"issues"`         //
-	Webhooks         sim.Stats        `json:"webhooks"`       // everything the simulator sent, sync's own echoes included
-	Sync             map[string]int64 `json:"sync_event_log"` // event-log rows by status
-	DuplicatesCaught int64            `json:"duplicate_deliveries_rejected"`
-	Converge         map[string]int64 `json:"converge_actions"`
-	DuplicateWork    int              `json:"duplicate_work_items"`
-	MissingWork      int              `json:"missing_work_items"`
-	LostUpdates      int              `json:"lost_updates"`
-	Races            int              `json:"concurrent_edit_races"`
-	LostKeys         []string         `json:"lost_keys,omitempty"`
-	DriveSeconds     float64          `json:"drive_seconds"`
-	HealSeconds      float64          `json:"drift_healed_seconds"` // last user change -> both sides agree everywhere
-	Converged        bool             `json:"converged"`
-	DropRate         float64          `json:"drop_rate"`
-	DuplicateRate    float64          `json:"duplicate_rate"`
+	UserEvents       int64                  `json:"user_events"`    // changes made by simulated users
+	PRs              int                    `json:"pull_requests"`  //
+	Issues           int                    `json:"issues"`         //
+	Webhooks         sim.Stats              `json:"webhooks"`       // everything the simulator sent, sync's own echoes included
+	Sync             map[string]int64       `json:"sync_event_log"` // event-log rows by status
+	DuplicatesCaught int64                  `json:"duplicate_deliveries_rejected"`
+	Converge         map[string]int64       `json:"converge_actions"`
+	DuplicateWork    int                    `json:"duplicate_work_items"`
+	MissingWork      int                    `json:"missing_work_items"`
+	LostUpdates      int                    `json:"lost_updates"`
+	Races            int                    `json:"concurrent_edit_races"`
+	LostKeys         []string               `json:"lost_keys,omitempty"`
+	LostTrails       map[string][]sim.Write `json:"lost_trails,omitempty"` // audit log of the first few lost objects
+	DriveSeconds     float64                `json:"drive_seconds"`
+	HealSeconds      float64                `json:"drift_healed_seconds"` // last user change -> both sides agree everywhere
+	Converged        bool                   `json:"converged"`
+	DropRate         float64                `json:"drop_rate"`
+	DuplicateRate    float64                `json:"duplicate_rate"`
 }
 
 func main() {
@@ -194,6 +195,15 @@ func main() {
 	res.HealSeconds = time.Since(lastChange).Seconds()
 	c := check(t)
 	res.DuplicateWork, res.MissingWork, res.LostUpdates, res.Races, res.LostKeys = c.DuplicateWork, c.MissingWork, c.LostUpdates, c.Races, c.LostKeys
+	res.LostTrails = map[string][]sim.Write{}
+	for _, k := range c.LostKeys[:min(3, len(c.LostKeys))] {
+		key, _, _ := strings.Cut(k, ":")
+		for _, a := range t.Audit {
+			if a.Key == key {
+				res.LostTrails[key] = append(res.LostTrails[key], a)
+			}
+		}
+	}
 	res.Webhooks = t.Stats
 	for _, i := range t.Issues {
 		if i.PR {
