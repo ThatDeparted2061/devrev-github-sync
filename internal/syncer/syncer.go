@@ -119,9 +119,10 @@ func bodyFor(i *github.Issue) string {
 
 // InSync reports whether the two sides agree on everything the sync owns.
 func InSync(i *github.Issue, w *devrev.Work) bool {
-	if i.Title != w.Title {
-		return false
-	}
+	return i.Title == w.Title && statusInSync(i, w)
+}
+
+func statusInSync(i *github.Issue, w *devrev.Work) bool {
 	g, d := GitHubStatus(i), DevRevStatus(w.Stage.Name)
 	// DevRev may call a PR done before it is merged; merging stays GitHub's call.
 	return g == d || (i.IsPR() && g == Open && d == ClosedCompleted)
@@ -181,23 +182,26 @@ func (s *Syncer) Converge(ctx context.Context, key string, hint time.Time) (stri
 				return err
 			}
 			action = "created"
-			return store.PutLink(ctx, tx, newLink(key, kind, gh, w))
+			return store.PutLink(ctx, tx, newLink(key, kind, gh, w, GitHubStatus(gh), DevRevStatus(w.Stage.Name)))
 		}
 
 		ghStatus, dvStatus := GitHubStatus(gh), DevRevStatus(w.Stage.Name)
+		if link != nil {
+			slog.Debug("converge", "key", key, "gh", ghStatus, "dv", dvStatus, "base_gh", link.GHStatus, "base_dv", link.DVStatus)
+		}
 		ghMoved := link == nil || Status(link.GHStatus) != ghStatus
 		dvMoved := link != nil && Status(link.DVStatus) != dvStatus
 		ghEdited := link == nil || gh.UpdatedAt.After(link.GHSeenAt)
 
 		if InSync(gh, w) && !ghEdited {
-			if link == nil || dvMoved {
-				return store.PutLink(ctx, tx, newLink(key, kind, gh, w))
+			if link == nil || ghMoved || dvMoved {
+				return store.PutLink(ctx, tx, newLink(key, kind, gh, w, ghStatus, dvStatus))
 			}
 			return nil
 		}
 
 		devrevWins := false
-		if ghStatus != dvStatus && dvMoved {
+		if !statusInSync(gh, w) && dvMoved {
 			devrevWins = !ghMoved
 			if ghMoved { // both sides changed status since the last sync: the later change wins
 				ghAt, err := s.GH.StatusChangedAt(ctx, number)
@@ -208,17 +212,30 @@ func (s *Syncer) Converge(ctx context.Context, key string, hint time.Time) (stri
 				metrics.Conflict(map[bool]string{true: "devrev", false: "github"}[devrevWins])
 			}
 		}
-		if devrevWins && !(gh.IsPR() && dvStatus == ClosedCompleted) {
-			state, reason := githubState(dvStatus)
-			if gh, err = s.GH.SetState(ctx, number, state, reason); err != nil {
-				return err
-			}
-			action = "pushed_github"
+		// The merge base becomes the status both sides were brought to, not
+		// whatever the writes returned: if someone changed a side while this
+		// sync ran, that side then differs from the base and wins next time.
+		merged := ghStatus
+		if devrevWins {
+			merged = dvStatus
 		}
-		if gh.Title != w.Title || ghEdited || (!devrevWins && ghStatus != dvStatus) {
+		ghBase, dvBase := merged, merged
+		if devrevWins {
+			if gh.IsPR() && dvStatus == ClosedCompleted {
+				ghBase = ghStatus // merging stays GitHub's call; the PR is left open
+			} else {
+				state, reason := githubState(dvStatus)
+				if gh, err = s.GH.SetState(ctx, number, state, reason); err != nil {
+					return err
+				}
+				action = "pushed_github"
+			}
+		}
+		pushStage := !devrevWins && !statusInSync(gh, w)
+		if gh.Title != w.Title || ghEdited || pushStage {
 			stage := ""
-			if !devrevWins {
-				stage = stageFor(GitHubStatus(gh), w.Stage.Name, gh.IsPR())
+			if pushStage {
+				stage = stageFor(merged, w.Stage.Name, gh.IsPR())
 			}
 			if w, err = s.DV.Update(ctx, w.ID, gh.Title, bodyFor(gh), stage); err != nil {
 				return err
@@ -227,7 +244,10 @@ func (s *Syncer) Converge(ctx context.Context, key string, hint time.Time) (stri
 				action = "pushed_devrev"
 			}
 		}
-		return store.PutLink(ctx, tx, newLink(key, kind, gh, w))
+		if !pushStage && !devrevWins {
+			dvBase = dvStatus // status was already in sync (e.g. a PR DevRev calls done)
+		}
+		return store.PutLink(ctx, tx, newLink(key, kind, gh, w, ghBase, dvBase))
 	})
 	if err == nil {
 		metrics.Converge(action)
@@ -235,9 +255,9 @@ func (s *Syncer) Converge(ctx context.Context, key string, hint time.Time) (stri
 	return action, err
 }
 
-func newLink(key, kind string, gh *github.Issue, w *devrev.Work) store.Link {
+func newLink(key, kind string, gh *github.Issue, w *devrev.Work, ghBase, dvBase Status) store.Link {
 	return store.Link{GitHubKey: key, Kind: kind, WorkID: w.ID, GHSeenAt: gh.UpdatedAt, DVSeenAt: w.ModifiedDate,
-		GHStatus: string(GitHubStatus(gh)), DVStatus: string(DevRevStatus(w.Stage.Name))}
+		GHStatus: string(ghBase), DVStatus: string(dvBase)}
 }
 
 // Retryable reports whether a failed sync should be retried.
